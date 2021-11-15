@@ -181,9 +181,9 @@ WasmEdge::Expect<void> WriteU64(llvm::raw_ostream &OS, uint64_t Data) {
 };
 
 WasmEdge::Expect<void> WriteName(llvm::raw_ostream &OS, std::string_view Data) {
-  WriteU32(OS, Data.size());
+  WriteU32(OS, static_cast<uint32_t>(Data.size()));
   for (const auto C : Data) {
-    WriteByte(OS, C);
+    WriteByte(OS, static_cast<uint8_t>(C));
   }
   return {};
 };
@@ -446,6 +446,7 @@ static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,
     return llvm::Type::getDoubleTy(LLContext);
   default:
     assuming(false);
+    __builtin_unreachable();
   }
 }
 
@@ -508,6 +509,7 @@ static llvm::Constant *toLLVMConstantZero(llvm::LLVMContext &LLContext,
     return llvm::ConstantFP::get(llvm::Type::getDoubleTy(LLContext), 0.0);
   default:
     assuming(false);
+    __builtin_unreachable();
   }
 }
 
@@ -4034,7 +4036,8 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       }
     }
     if (CodesMin != std::numeric_limits<uint64_t>::max()) {
-      Codes.erase(Codes.begin(), Codes.begin() + CodesMin);
+      Codes.erase(Codes.begin(),
+                  Codes.begin() + static_cast<int64_t>(CodesMin));
     }
     WriteU64(OS, VersionAddress);
     WriteU64(OS, IntrinsicsAddress);
