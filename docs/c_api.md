@@ -44,7 +44,7 @@
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.2
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.3
 ```
 
 For more details, please refer to the [Installation Guide](install.md) for the WasmEdge installation.
@@ -74,7 +74,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.9.0-rc.2
+    WasmEdge version: 0.9.0-rc.3
     ```
 
 ## WasmEdge Basics
@@ -230,7 +230,7 @@ The details of other contexts will be introduced later.
 
 ### WASM Data Structures
 
-The WASM data structures are used for creating instances or can be queried from intance contexts.
+The WASM data structures are used for creating instances or can be queried from instance contexts.
 The details of instances creation will be introduced in the [Instances](#Instances).
 
 1. Limit

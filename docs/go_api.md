@@ -5,11 +5,37 @@ The followings are the guides to working with the WasmEdge-Go.
 ## Table of Contents
 
 * [Getting Started](#Getting-Started)
-* [WasmEdge-go Extensions](#WasmEdge-go-Extensions)
-* [Go-API Examples](#Go-API-Examples)
-	* [Embed a function](#Embed-a-function)
-	* [Embed a full program](#Embed-a-full-program)
-	* [WasmEdge AOT Compiler in GO](#WasmEdge-AOT-Compiler-in-GO)
+  * [WasmEdge Installation](#WasmEdge-Installation)
+  * [Get WasmEdge-go](#Get-WasmEdge-go)
+  * [WasmEdge-go Extensions](#WasmEdge-go-Extensions)
+* [WasmEdge-go Basics](#WasmEdge-go-Basics)
+  * [Version](#Version)
+  * [Logging Settings](#Logging-Settings)
+  * [Value Types](#Value-Types)
+  * [Results](#Results)
+  * [Contexts And Their Life Cycles](#Contexts-And-Their-Life-Cycles)
+  * [WASM data structures](#Wasm-data-structures)
+  * [Configurations](#Configurations)
+  * [Statistics](#Statistics)
+* [WasmEdge VM](#WasmEdge-VM)
+  * [WASM Execution Example With VM Context](#WASM-Execution-Example-With-VM-Context)
+  * [VM Creations](#VM-Creations)
+  * [Preregistrations](#Preregistrations)
+  * [Host Module Registrations](#Host-Module-Registrations)
+  * [WASM Registrations And Executions](#WASM-Registrations-And-Executions)
+  * [Instance Tracing](#Instance-Tracing)
+* [WasmEdge Runtime](#WasmEdge-Runtime)
+  * [WASM Execution Example Step-By-Step](#WASM-Execution-Example-Step-By-Step)
+  * [Loader](#Loader)
+  * [Validator](#Validator)
+  * [Executor](#Executor)
+  * [AST Module](#AST-Module)
+  * [Store](#Store)
+  * [Instances](#Instances)
+  * [Host Functions](#Host-Functions)
+* [WasmEdge AOT Compiler](#WasmEdge-AOT-Compiler)
+  * [Compilation Example](#Compilation-Example)
+  * [Compiler Options](#Compiler-Options)
 
 ## Getting Started
 
@@ -20,49 +46,55 @@ $ go version
 go version go1.16.5 linux/amd64
 ```
 
-Developers must [install the WasmEdge shared library](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md) with the same `WasmEdge-go` release version.
+### WasmEdge Installation
+
+Developers must [install the WasmEdge shared library](install.md) with the same `WasmEdge-go` release or pre-release version.
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.2
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.3
 ```
-
-For more details, please refer to the [Installation Guide](install.md) for the WasmEdge installation.
 
 For the developers need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.2
+wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.9.0-rc.3
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
+After installation, developers can use the `source` command to update the include and linking searching path.
 
-Install the `WasmEdge-go` package and build in your Go project directory:
+### Get WasmEdge-go
+
+After the WasmEdge installation, developers can get the `WasmEdge-go` package and build in your Go project directory.
 
 ```bash
 $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0-rc3
 $ go build
 ```
 
-## WasmEdge-go Extensions
+### WasmEdge-go Extensions
 
 By default, the `WasmEdge-go` only turns on the basic runtime.
 
 `WasmEdge-go` has the following extensions:
 
- - Tensorflow
-    * This extension supports the host functions in [WasmEdge-tensorflow](https://github.com/second-state/WasmEdge-tensorflow).
-    * The `TensorFlow` extension when installing `WasmEdge` is required. Please install `WasmEdge` with the `-e tensorflow` command.
-    * For using this extension, the tag `tensorflow` when building is required:
-        ```bash
-        $ go build -tags tensorflow
-        ```
- - Image
-    * This extension supports the host functions in [WasmEdge-image](https://github.com/second-state/WasmEdge-image).
-    * The `Image` extension when installing `WasmEdge` is required. Please install `WasmEdge` with the `-e image` command.
-    * For using this extension, the tag `image` when building is required:
-        ```bash
-        $ go build -tags image
-        ```
+* Tensorflow
+  * This extension supports the host functions in [WasmEdge-tensorflow](https://github.com/second-state/WasmEdge-tensorflow).
+  * The `TensorFlow` extension when installing `WasmEdge` is required. Please install `WasmEdge` with the `-e tensorflow` command.
+  * For using this extension, the tag `tensorflow` when building is required:
+
+    ```bash
+    $ go build -tags tensorflow
+    ```
+
+* Image
+  * This extension supports the host functions in [WasmEdge-image](https://github.com/second-state/WasmEdge-image).
+  * The `Image` extension when installing `WasmEdge` is required. Please install `WasmEdge` with the `-e image` command.
+  * For using this extension, the tag `image` when building is required:
+
+    ```bash
+    $ go build -tags image
+    ```
 
 Users can also turn on the multiple extensions when building:
 
@@ -71,6 +103,254 @@ $ go build -tags image,tensorflow
 ```
 
 For examples, please refer to the [example repository](https://github.com/second-state/WasmEdge-go-examples/).
+
+## WasmEdge-go Basics
+
+In this partition, we will introduce the utilities and concepts of WasmEdge-go APIs and data structures.
+
+### Version
+
+The `Version` related APIs provide developers to check for the installed WasmEdge shared library version.
+
+```go
+import "github.com/second-state/WasmEdge-go/wasmedge"
+
+verstr := wasmedge.GetVersion() // Will be `string` of WasmEdge version.
+vermajor := wasmedge.GetVersionMajor() // Will be `uint` of WasmEdge major version number.
+verminor := wasmedge.GetVersionMinor() // Will be `uint` of WasmEdge minor version number.
+verpatch := wasmedge.GetVersionPatch() // Will be `uint` of WasmEdge patch version number.
+```
+
+### Logging Settings
+
+The `wasmedge.SetLogErrorLevel()` and `wasmedge.SetLogDebugLevel()` APIs can set the logging system to debug level or error level. By default, the error level is set, and the debug info is hidden.
+
+### Value Types
+
+In WasmEdge-go, the APIs will automatically do the convertion for the built-in types, and implement the data structure for the reference types.
+
+1. Number types: `i32`, `i64`, `f32`, and `f64`
+
+    * Convert the `uint32` and `int32` to `i32` automatically when passing a value into WASM.
+    * Convert the `uint64` and `int64` to `i64` automatically when passing a value into WASM.
+    * Convert the `uint` and `int` to `i32` automatically when passing a value into WASM in 32-bit system.
+    * Convert the `uint` and `int` to `i64` automatically when passing a value into WASM in 64-bit system.
+    * Convert the `float32` to `f32` automatically when passing a value into WASM.
+    * Convert the `float64` to `f64` automatically when passing a value into WASM.
+    * Convert the `i32` from WASM to `int32` when getting a result.
+    * Convert the `i64` from WASM to `int64` when getting a result.
+    * Convert the `f32` from WASM to `float32` when getting a result.
+    * Convert the `f64` from WASM to `float64` when getting a result.
+
+2. Number type: `v128` for the `SIMD` proposal
+
+    Developers should use the `wasmedge.NewV128()` to generate a `v128` value, and use the `wasmedge.GetV128()` to get the value.
+
+    ```go
+    val := wasmedge.NewV128(uint64(1234), uint64(5678))
+    high, low := val.GetVal()
+    // `high` will be uint64(1234), `low` will be uint64(5678)
+    ```
+
+3. Reference types: `FuncRef` and `ExternRef` for the `Reference-Types` proposal
+
+    ```go
+    funcref := wasmedge.NewFuncRef(10)
+    // Create a `FuncRef` with function index 10.
+
+    num := 1234
+    // `num` is a `int`.
+    externref := wasmedge.NewExternRef(&num)
+    // Create an `ExternRef` which reference to the `num`.
+    num = 5678
+    // Modify the `num` to 5678.
+    numref := externref.GetRef().(*int)
+    // Get the original reference from the `ExternRef`.
+    fmt.Println(*numref)
+    // Will print `5678`.
+    numref.Release()
+    // Should call the `Release` method.
+    ```
+
+### Results
+
+The `Result` object specifies the execution status. Developers can use the `Error()` function to get the error message.
+
+```go
+// Assume that `vm` is a `wasmedge.VM` object.
+res, err = vm.Execute(...) // Ignore the detail of parameters.
+// Assume that `res, err` are the return values for executing a function with `vm`.
+if err != nil {
+    fmt.Println("Error message:", err.Error())
+}
+```
+
+### Contexts And Their Life Cycles
+
+The objects, such as `VM`, `Store`, and `Function`, are composed of `Context`s in the WasmEdge shared library.
+All of the contexts can be created by calling the corresponding `New` APIs, and will be automatically deleted by the finalizers when the garbage collection is activated.
+Developers can also call the corresponding `Release` functions of the contexts to forcely delete the object and release the resources immediately.
+Noticed that it's not necessary to call the `Release` functions for the contexts which are retrieved from other contexts but not created from the `New` APIs.
+
+```go
+// Create a Configure.
+conf := wasmedge.NewConfigure()
+// Release the `conf` immediately.
+conf.Release()
+```
+
+The details of other contexts will be introduced later.
+
+### WASM Data Structures
+
+The WASM data structures are used for creating instances or can be queried from instance contexts.
+The details of instances creation will be introduced in the [Instances](#Instances).
+
+1. Limit
+
+    The `Limit` struct presents the minimum and maximum value data structure.
+
+    ```go
+    lim1 := wasmedge.NewLimit(12)
+    fmt.Println(lim1.HasMax())
+    // Will print `false`.
+    fmt.Println(lim1.GetMin())
+    // Will print `12`.
+
+    lim2 := wasmedge.NewLimitWithMax(15, 50)
+    fmt.Println(lim2.HasMax())
+    // Will print `true`.
+    fmt.Println(lim2.GetMin())
+    // Will print `15`.
+    fmt.Println(lim2.GetMax())
+    // Will print `50`.
+    ```
+
+2. Function type context
+
+    The `FunctionType` is an object holds the function type context and used for the `Function` creation, checking the value types of a `Function` instance, or getting the function type with function name from VM.
+    Developers can use the `FunctionType` APIs to get the parameter or return value types information.
+
+    ```go
+    functype := wasmedge.NewFunctionType(
+        []wasmedge.ValType{
+            wasmedge.ValType_ExternRef,
+            wasmedge.ValType_I32,
+            wasmedge.ValType_I64,
+        }, []wasmedge.ValType{
+            wasmedge.ValType_F32,
+            wasmedge.ValType_F64,
+        })
+
+    plen := functype.GetParametersLength()
+    // `plen` will be 3.
+    rlen := functype.GetReturnsLength()
+    // `rlen` will be 2.
+    plist := functype.GetParameters()
+    // `plist` will be `[]wasmedge.ValType{wasmedge.ValType_ExternRef, wasmedge.ValType_I32, wasmedge.ValType_I64}`.
+    rlist := functype.GetReturns()
+    // `rlist` will be `[]wasmedge.ValType{wasmedge.ValType_F32, wasmedge.ValType_F64}`.
+
+    functype.Release()
+    ```
+
+3. Table type context
+
+    The `TableType` is an object holds the table type context and used for `Table` instance creation or getting information from `Table` instances.
+
+    ```go
+    lim := wasmedge.NewLimit(12)
+    tabtype := wasmedge.NewTableType(wasmedge.RefType_ExternRef, lim)
+
+    rtype := tabtype.GetRefType()
+    // `rtype` will be `wasmedge.RefType_ExternRef`.
+    getlim := tabtype.GetLimit()
+    // `getlim` will be the same value as `lim`.
+
+    tabtype.Release()
+    ```
+
+4. Memory type context
+
+    The `MemoryType` is an object holds the memory type context and used for `Memory` instance creation or getting information from `Memory` instances.
+
+    ```go
+    lim := wasmedge.NewLimit(1)
+    memtype := wasmedge.NewMemoryType(lim)
+
+    getlim := memtype.GetLimit()
+    // `getlim` will be the same value as `lim`.
+
+    memtype.Release()
+    ```
+
+5. Global type context
+
+    The `GlobalType` is an object holds the global type context and used for `Global` instance creation or getting information from `Global` instances.
+
+    ```go
+    globtype := wasmedge.NewGlobalType(wasmedge.ValType_F64, wasmedge.ValMut_Var)
+
+    vtype := globtype.GetValType()
+    // `vtype` will be `wasmedge.ValType_F64`.
+    vmut := globtype.GetMutability()
+    // `vmut` will be `wasmedge.ValMut_Var`.
+
+    globtype.Release()
+    ```
+
+6. Import type context
+
+    The `ImportType` is an object holds the import type context and used for getting the imports information from a [AST Module](#AST-Module).
+    Developers can get the external type (`function`, `table`, `memory`, or `global`), import module name, and external name from an `ImportType` object.
+    The details about querying `ImportType` objects will be introduced in the [AST Module](#AST-Module).
+
+    ```go
+    var ast *wasmedge.AST = ...
+    // Assume that `ast` is returned by the `Loader` for the result of loading a WASM file.
+    imptypelist := ast.ListImports()
+    // Assume that `imptypelist` is an array listed from the `ast` for the imports.
+
+    for i, imptype := range imptypelist {
+        exttype := imptype.GetExternalType()
+        // The `exttype` must be one of `wasmedge.ExternType_Function`, `wasmedge.ExternType_Table`,
+        // wasmedge.ExternType_Memory`, or `wasmedge.ExternType_Global`.
+
+        modname := imptype.GetModuleName()
+        extname := imptype.GetExternalName()
+        // Get the module name and external name of the imports.
+
+        extval := imptype.GetExternalValue()
+        // The `extval` is the type of `interface{}` which indicates one of `*wasmedge.FunctionType`,
+        // `*wasmedge.TableType`, `*wasmedge.MemoryType`, or `*wasmedge.GlobalType`.
+    }
+    ```
+
+7. Export type context
+
+    The `ExportType` is an object holds the export type context is used for getting the exports information from a [AST Module](#AST-Module).
+    Developers can get the external type (`function`, `table`, `memory`, or `global`) and external name from an `Export Type` context.
+    The details about querying `ExportType` objects will be introduced in the [AST Module](#AST-Module).
+
+    ```go
+    var ast *wasmedge.AST = ...
+    // Assume that `ast` is returned by the `Loader` for the result of loading a WASM file.
+    exptypelist := ast.ListExports()
+    // Assume that `exptypelist` is an array listed from the `ast` for the exports.
+
+    for i, exptype := range exptypelist {
+        exttype := exptype.GetExternalType()
+        // The `exttype` must be one of `wasmedge.ExternType_Function`, `wasmedge.ExternType_Table`,
+        // wasmedge.ExternType_Memory`, or `wasmedge.ExternType_Global`.
+
+        extname := exptype.GetExternalName()
+        // Get the external name of the exports.
+
+        extval := exptype.GetExternalValue()
+        // The `extval` is the type of `interface{}` which indicates one of `*wasmedge.FunctionType`,
+        // `*wasmedge.TableType`, `*wasmedge.MemoryType`, or `*wasmedge.GlobalType`.
+    }
+    ```
 
 ## Go-API Examples
 
